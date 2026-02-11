@@ -118,6 +118,25 @@ void Player::AddSongToQueue(const Song &song) {
   }
 }
 
+void Player::SeekToPosition(float seconds) {
+  if (!sound_initialized)
+    return;
+  
+  ma_uint32 sampleRate;
+  ma_sound_get_data_format(&sound, NULL, NULL, &sampleRate, NULL, 0);
+  
+  ma_uint64 targetFrame = (ma_uint64)(seconds * sampleRate);
+  
+  ma_uint64 lengthInFrames;
+  ma_sound_get_length_in_pcm_frames(&sound, &lengthInFrames);
+  
+  if (targetFrame > lengthInFrames) {
+    targetFrame = lengthInFrames;
+  }
+  
+  ma_sound_seek_to_pcm_frame(&sound, targetFrame);
+}
+
 Player::~Player() {
   if (sound_initialized) {
     ma_sound_uninit(&sound);
