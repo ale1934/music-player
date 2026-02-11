@@ -17,11 +17,13 @@ private:
   Library &library;
   ScreenInteractive screen;
 
+  int current_song_index = 0;
   std::vector<Song> songs;
   std::vector<Component> songButtons;
   Component libraryContainer;
 
   std::atomic<bool> running{true};
+  bool show_library = true;
 
   void CreateLibraryButtons();
   void UpdateLoop();
