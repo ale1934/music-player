@@ -2,52 +2,77 @@
 #include <filesystem>
 #include <iostream>
 
-void LoadLibrary(std::vector<std::string> &songs,
-                 std::string directory) {
-  songs.clear();
-  
-  // Check if directory exists
-  if (!exists(directory)) {
-    std::cerr << "Music directory doesn't exist: " << directory << std::endl;
-    return;
+void Library::ScanDirectory(const std::string &directory) {
+  namespace fs = std::filesystem;
+
+  for (const auto &entry : fs::recursive_directory_iterator(directory)) {
+    if (entry.is_regular_file()) {
+      std::string ext = entry.path().extension().string();
+      if (ext == ".mp3" || ext == ".flac" || ext == ".wav" || ext == ".ogg") {
+        Song song = GetSongMetadata(entry.path().string());
+        songs.push_back(song);
+      }
+    }
   }
-  
-  for (const auto& entry: directory_iterator(directory)) {
-    if (entry.is_regular_file()) {  // Only add files, not directories
-      songs.push_back(entry.path().filename().string());
+}
+
+Song Library::GetSongMetadata(const std::string &filepath) {
+  Song song;
+  song.filepath = filepath;
+
+  TagLib::FileRef file(filepath.c_str());
+
+  if (!file.isNull() && file.tag()) {
+    TagLib::Tag *tag = file.tag();
+    song.title = tag->title().isEmpty()
+                     ? std::filesystem::path(filepath).stem().string()
+                     : tag->title().toCString(true);
+    song.artist = tag->artist().toCString(true);
+    song.album = tag->album().toCString(true);
+  } else {
+    // Fallback to filename
+    song.title = std::filesystem::path(filepath).stem().string();
+  }
+
+  if (file.audioProperties()) {
+    song.duration_seconds = file.audioProperties()->lengthInSeconds();
+  }
+
+  return song;
+}
+
+Library::Library() { ScanDirectory(music_folder); }
+
+std::vector<Song> Library::GetAllSongs() const { return songs; }
+
+Song *Library::FindSongByTitle(const std::string &title) {
+  for (auto &song : songs) {
+    if (song.title == title) {
+      return &song;
     }
-  } 
+  }
+  return nullptr;
 }
 
-Library::Library() {
-  num_of_songs = 0;
-
-  LoadLibrary(songs, music_folder);
-  num_of_songs = songs.size();
-}
-
-std::string Library::FetchSongFromName(std::string name) {
-  return music_folder + name; 
-}
-
-std::vector<std::string> Library::GetAllSongs() {
-  return songs;
-}
-
-void Library::AddSongToLibrary(path file_path) {
-  std::string new_path = music_folder 
-                         + (std::string)file_path.filename(); 
-  rename(file_path.c_str(), new_path.c_str());
-}
-
-void Library::DeleteSongFromLibrary(std::string name) {
-  for (int i = 0; i < songs.size(); i++) 
-    if (songs[i] == name) {
-      remove((music_folder + name).c_str());
-      songs.erase(songs.begin() + i);
+Song *Library::FindSongByDisplayName(const std::string &display_name) {
+  for (auto &song : songs) {
+    if (song.GetDisplayName() == display_name) {
+      return &song;
     }
+  }
+  return nullptr;
 }
 
-void Library::ChangeMusicFolder(std::string directory) {
-  music_folder = directory;
+std::string Library::FetchSongPathFromTitle(const std::string &title) {
+  Song *song = FindSongByTitle(title);
+  if (song) {
+    return song->filepath;
+  }
+
+  song = FindSongByDisplayName(title);
+  if (song) {
+    return song->filepath;
+  }
+
+  return ""; // Not found
 }

@@ -1,4 +1,5 @@
 #include "../include/ui.h"
+#include <iostream>
 
 int main() {
   Library lib;

@@ -1,33 +1,64 @@
 #include "../include/player.h"
+#include <iostream>
 
-Player::Player(Library l) {
+Player::Player(Library l) : lib(l) {
   position_in_queue = 0;
   song_paused = false;
-  sound_initialized = false; 
-  currently_playing = "";   
-  lib = l;
-
+  sound_initialized = false;
+  currentSong = Song{"", "Nothing Is Playing", "", "", 0}; // Empty song
   ma_engine_init(NULL, &engine);
 }
 
-// Get songs & queue
-std::string Player::GetCurrentSong() { return currently_playing; }
+uint64_t Player::GetCurrentPositionInFrames() {
+  if (!sound_initialized)
+    return 0;
+  ma_uint64 cursor;
+  ma_sound_get_cursor_in_pcm_frames(&sound, &cursor);
+  return cursor;
+}
+
+float Player::GetCurrentPositionInSeconds() {
+  if (!sound_initialized)
+    return 0.0f;
+  ma_uint64 cursor;
+  ma_sound_get_cursor_in_pcm_frames(&sound, &cursor);
+  ma_uint32 sampleRate;
+  ma_sound_get_data_format(&sound, NULL, NULL, &sampleRate, NULL, 0);
+  return (float)cursor / (float)sampleRate;
+}
+
+float Player::GetSongLengthInSeconds() {
+  if (!sound_initialized)
+    return 0.0f;
+  ma_uint64 lengthInFrames;
+  ma_sound_get_length_in_pcm_frames(&sound, &lengthInFrames);
+  ma_uint32 sampleRate;
+  ma_sound_get_data_format(&sound, NULL, NULL, &sampleRate, NULL, 0);
+  return (float)lengthInFrames / (float)sampleRate;
+}
+
+std::string Player::FormatTime(float seconds) {
+  int minutes = (int)seconds / 60;
+  int secs = (int)seconds % 60;
+  char buffer[16];
+  snprintf(buffer, sizeof(buffer), "%d:%02d", minutes, secs);
+  return std::string(buffer);
+}
+
+Song *Player::GetCurrentSongObject() { return &currentSong; }
+
 std::vector<std::string> Player::GetSongsInQueue() { return queue; }
 
-// Returns whether or not a song is currently playing
 bool Player::IsPlaying() {
-  if (!sound_initialized)  // Check this first!
+  if (!sound_initialized)
     return false;
   return ma_sound_is_playing(&sound);
 }
 
-// Pause if song is currently playing or resume if song is paused
 void Player::PauseOrResume() {
-  // If not playing a song then just return
-  if (currently_playing == "" || !sound_initialized)
+  if (currentSong.title.empty() || !sound_initialized)
     return;
-
-  if (song_paused == true) {
+  if (song_paused) {
     ma_sound_start(&sound);
     song_paused = false;
   } else {
@@ -36,43 +67,57 @@ void Player::PauseOrResume() {
   }
 }
 
-void Player::PlaySong(const std::string& song_name) {
-  // Use library to get file path
-  std::string file_path = lib.FetchSongFromName(song_name.c_str());
- 
-  // Bad path then exit function
-  if (file_path.empty()) {
+void Player::PlaySong(const Song &song) {
+  if (song.filepath.empty()) {
     return;
   }
- 
+
   if (sound_initialized) {
     ma_sound_uninit(&sound);
   }
-  
-  // Initialize sound player
-  ma_result result = ma_sound_init_from_file(&engine, file_path.c_str(), 
-                                             0, NULL, NULL, &sound);
+
+  ma_result result = ma_sound_init_from_file(&engine, song.filepath.c_str(), 0,
+                                             NULL, NULL, &sound);
   if (result != MA_SUCCESS) {
     sound_initialized = false;
     return;
   }
-  
+
   sound_initialized = true;
-  currently_playing = song_name;
+  currentSong = song; // Store complete song metadata
   song_paused = false;
   ma_sound_start(&sound);
 }
 
-void Player::AddSongToQueue(std::string& song_name) {
-  queue.push_back(song_name);
-  
-  // If nothing is playing, start playing the first song
-  if (currently_playing == "") {
-    PlaySong(song_name);
-  } 
+void Player::PlaySongByPath(const std::string &filepath) {
+  if (filepath.empty()) {
+    return;
+  }
+
+  if (sound_initialized) {
+    ma_sound_uninit(&sound);
+  }
+
+  ma_result result =
+      ma_sound_init_from_file(&engine, filepath.c_str(), 0, NULL, NULL, &sound);
+  if (result != MA_SUCCESS) {
+    sound_initialized = false;
+    return;
+  }
+
+  sound_initialized = true;
+  currentSong.filepath = filepath;
+  song_paused = false;
+  ma_sound_start(&sound);
 }
 
-// Destroy sound player & engine
+void Player::AddSongToQueue(const Song &song) {
+  queue.push_back(song.title);
+  if (currentSong.title.empty()) {
+    PlaySong(song);
+  }
+}
+
 Player::~Player() {
   if (sound_initialized) {
     ma_sound_uninit(&sound);

@@ -13,6 +13,10 @@ FetchContent_Declare(ftxui
 )
 FetchContent_MakeAvailable(ftxui)
 
+# Find TagLib
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(TAGLIB REQUIRED taglib)
+
 # Add all your source files
 add_executable(main 
   src/main.cpp
@@ -23,13 +27,20 @@ add_executable(main
 )
 
 # Include directories for headers
-target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(main PRIVATE 
+  ${CMAKE_SOURCE_DIR}/include
+  ${TAGLIB_INCLUDE_DIRS}
+)
+
+# Link directories for TagLib
+target_link_directories(main PRIVATE ${TAGLIB_LIBRARY_DIRS})
 
 # Link libraries
 target_link_libraries(main
   PRIVATE ftxui::screen
   PRIVATE ftxui::dom
   PRIVATE ftxui::component
+  PRIVATE ${TAGLIB_LIBRARIES}
   PRIVATE pthread
   PRIVATE m
   PRIVATE dl
