@@ -179,13 +179,6 @@ Element MusicPlayerTUI::RenderNowPlayingTab() {
       }) |
       size(WIDTH, GREATER_THAN, 10) | size(HEIGHT, GREATER_THAN, 5);
 
-  std::string yt_content = "";
-  std::string yt_placeholder = "Enter yt link here";
-  Component yt_input = Input({
-      .content = &yt_content,
-      .placeholder = &yt_placeholder,
-  });
-
   return vbox({text("Now Playing") | bold | center, separator(), text(""),
                text(currentSong.GetDisplayName()) | center,
                text(currentSong.artist) | dim | center,
@@ -193,12 +186,20 @@ Element MusicPlayerTUI::RenderNowPlayingTab() {
                hbox({text(player.FormatTime(currentPos)), separator(),
                      gauge(progress) | flex, separator(),
                      text(player.FormatTime(totalLength))}),
-               text(""), separator(), dynamicAlbumArt->Render() | flex,
-               yt_input->Render() | flex}) |
+               text(""), separator(), dynamicAlbumArt->Render() | flex}) |
          border | flex;
 }
 
 void MusicPlayerTUI::Run() {
+  std::string yt_content = "";
+  std::string yt_placeholder = "Enter yt link here";
+  Component yt_input = Input({
+      .content = &yt_content,
+      .placeholder = &yt_placeholder,
+  });
+
+  libraryContainer->Add(yt_input);
+
   auto MainScreen = Renderer(libraryContainer, [&] {
     auto dims = Terminal::Size();
 
@@ -206,7 +207,7 @@ void MusicPlayerTUI::Run() {
       return hbox(
           {RenderLibraryTab(), separator(), RenderNowPlayingTab() | flex});
     } else {
-      return RenderNowPlayingTab() | flex;
+      return vbox({RenderNowPlayingTab() | flex, yt_input->Render() | border});
     }
   });
 
