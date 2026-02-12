@@ -28,6 +28,7 @@ public:
   void Loop(int times);
   void NextSong();
 
+  uint64_t GetCurrentVelocityNormalized();
   uint64_t GetCurrentPositionInFrames();
   float GetCurrentPositionInSeconds();
   float GetSongLengthInSeconds();

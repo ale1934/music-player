@@ -1,14 +1,14 @@
 #include "../include/library.h"
 #include <filesystem>
-#include <iostream>
+
+namespace fs = std::filesystem;
 
 void Library::ScanDirectory(const std::string &directory) {
-  namespace fs = std::filesystem;
 
   for (const auto &entry : fs::recursive_directory_iterator(directory)) {
     if (entry.is_regular_file()) {
       std::string ext = entry.path().extension().string();
-      if (ext == ".mp3" || ext == ".flac" || ext == ".wav" || ext == ".ogg") {
+      if (ext == ".mp3" || ext == ".m4a" || ext == ".wav" || ext == ".ogg") {
         Song song = GetSongMetadata(entry.path().string());
         songs.push_back(song);
       }

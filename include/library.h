@@ -1,5 +1,6 @@
 #pragma once
 #include <filesystem>
+#include <ftxui/screen/image.hpp>
 #include <string>
 #include <taglib/fileref.h>
 #include <taglib/taglib.h>
@@ -32,6 +33,7 @@ public:
 
   void ScanDirectory(const std::string &directory);
   Song GetSongMetadata(const std::string &filepath);
+  path GetCurrentDir() { return music_folder; }
 
   std::vector<Song> GetAllSongs() const;
   Song *FindSongByTitle(const std::string &title);

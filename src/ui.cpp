@@ -14,10 +14,78 @@ void DrawSpiralGalaxy(Canvas &c, int frame, int width, int height) {
     for (int arm = 0; arm < 5; arm++) {
       float angle = r * 0.2 + arm * (2 * M_PI / 5) + frame * 0.02;
       int x = cx + r * std::cos(angle);
-      int y =
-          cy + r * std::sin(angle) * 0.5; // Squash for terminal aspect ratio
+      int y = cy + r * std::sin(angle) * 0.5;
 
       if (x >= 0 && x < width && y >= 0 && y < height) {
+        c.DrawPoint(x, y, true);
+      }
+    }
+  }
+}
+
+void DrawPlasmaWave(Canvas &c, int frame, int width, int height) {
+  for (int x = 0; x < width; x++) {
+    for (int y = 0; y < height; y++) {
+      float value = std::sin(x * 0.05 + frame * 0.1) +
+                    std::sin(y * 0.05 + frame * 0.15) +
+                    std::sin((x + y) * 0.03 + frame * 0.08);
+
+      if (value > 0.5) {
+        c.DrawPoint(x, y, true);
+      }
+    }
+  }
+}
+
+void DrawWaveform(Canvas &c, int frame, int width, int height) {
+  int cy = height / 2;
+
+  for (int x = 0; x < width; x++) {
+    float y1 = cy + 15 * std::sin((x + frame) * 0.1);
+
+    c.DrawPoint(x, (int)y1, true);
+  }
+}
+
+void DrawParticleExplosion(Canvas &c, int frame, int width, int height,
+                           std::vector<std::array<float, 4>> &particles) {
+  int cx = width / 2;
+  int cy = height / 2;
+
+  if (particles.empty() || frame % 60 == 0) {
+    particles.clear();
+    for (int i = 0; i < 150; i++) {
+      float angle = (rand() % 1000) / 1000.0f * 2 * M_PI;
+      float speed = (rand() % 100 + 50) / 100.0f;
+      particles.push_back({(float)cx, (float)cy, speed * std::cos(angle),
+                           speed * std::sin(angle) * 0.5f});
+    }
+  }
+
+  for (auto &p : particles) {
+    p[0] += p[2];
+    p[1] += p[3];
+
+    if (p[0] >= 0 && p[0] < width && p[1] >= 0 && p[1] < height) {
+      c.DrawPoint((int)p[0], (int)p[1], true);
+    }
+  }
+}
+
+void DrawDNAHelix(Canvas &c, int frame, int width, int height) {
+  int cy = height / 2;
+
+  for (int x = 0; x < width; x++) {
+    float t = (x + frame) * 0.1;
+    int y1 = cy + 15 * std::sin(t);
+    int y2 = cy - 15 * std::sin(t);
+
+    c.DrawPoint(x, y1, true);
+    c.DrawPoint(x, y2, true);
+
+    // Connect strands
+    if ((int)(t / M_PI) % 2 == 0 && x % 5 == 0) {
+      for (int y = std::min(y1, y2); y <= std::max(y1, y2); y += 2) {
         c.DrawPoint(x, y, true);
       }
     }
@@ -64,7 +132,7 @@ Element MusicPlayerTUI::RenderLibraryTab() {
     songs.push_back(separatorLight());
   }
 
-  return vbox({text("Library") | bold |center, separator(),
+  return vbox({text("Library") | bold | center, separator(),
                vbox(std::move(songs)) | yframe | flex}) |
          size(WIDTH, EQUAL, 36) | border;
 }
@@ -86,11 +154,37 @@ Element MusicPlayerTUI::RenderNowPlayingTab() {
       Renderer([this, currentPos](bool focused) {
         return canvas([this, currentPos](Canvas &c) {
           if (c.width() > 0 && c.height() > 0) {
-            DrawSpiralGalaxy(c, currentPos, c.width(), c.height());
+            switch (visualizer_style) {
+            case 0:
+              DrawDNAHelix(c, currentPos, c.width(), c.height());
+              return;
+            case 1:
+              DrawParticleExplosion(c, currentPos, c.width(), c.height(),
+                                    particles);
+              return;
+            case 2:
+              DrawPlasmaWave(c, currentPos, c.width(), c.height());
+              return;
+            case 3:
+              DrawWaveform(c, currentPos, c.width(), c.height());
+              return;
+            case 4:
+              DrawSpiralGalaxy(c, currentPos, c.width(), c.height());
+              return;
+            default:
+              return;
+            };
           }
         });
       }) |
       size(WIDTH, GREATER_THAN, 10) | size(HEIGHT, GREATER_THAN, 5);
+
+  std::string yt_content = "";
+  std::string yt_placeholder = "Enter yt link here";
+  Component yt_input = Input({
+      .content = &yt_content,
+      .placeholder = &yt_placeholder,
+  });
 
   return vbox({text("Now Playing") | bold | center, separator(), text(""),
                text(currentSong.GetDisplayName()) | center,
@@ -99,9 +193,11 @@ Element MusicPlayerTUI::RenderNowPlayingTab() {
                hbox({text(player.FormatTime(currentPos)), separator(),
                      gauge(progress) | flex, separator(),
                      text(player.FormatTime(totalLength))}),
-               text(""), separator(), dynamicAlbumArt->Render() | flex}) |
+               text(""), separator(), dynamicAlbumArt->Render() | flex,
+               yt_input->Render() | flex}) |
          border | flex;
 }
+
 void MusicPlayerTUI::Run() {
   auto MainScreen = Renderer(libraryContainer, [&] {
     auto dims = Terminal::Size();
@@ -150,6 +246,31 @@ void MusicPlayerTUI::Run() {
     if (event == Event::Character(' ')) {
       player.PauseOrResume();
 
+      return true;
+    }
+
+    if (event == Event::Character('1')) {
+      visualizer_style = 0;
+      return true;
+    }
+
+    if (event == Event::Character('2')) {
+      visualizer_style = 1;
+      return true;
+    }
+
+    if (event == Event::Character('3')) {
+      visualizer_style = 2;
+      return true;
+    }
+
+    if (event == Event::Character('4')) {
+      visualizer_style = 3;
+      return true;
+    }
+
+    if (event == Event::Character('5')) {
+      visualizer_style = 4;
       return true;
     }
 

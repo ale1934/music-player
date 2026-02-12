@@ -17,10 +17,13 @@ private:
   Library &library;
   ScreenInteractive screen;
 
+  int visualizer_style = 3;
   int current_song_index = 0;
   std::vector<Song> songs;
   std::vector<Component> songButtons;
   Component libraryContainer;
+
+  std::vector<std::array<float, 4>> particles;
 
   std::atomic<bool> running{true};
   bool show_library = true;

@@ -23,6 +23,7 @@ add_executable(main
   src/player.cpp
   src/library.cpp
   src/ui.cpp
+  src/downloader.cpp
   src/miniaudio.cpp
 )
 
